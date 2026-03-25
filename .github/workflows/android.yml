@@ -20,7 +20,6 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
-    # sdk
     - name: Set up Android SDK
       run: |
         sudo apt-get update
@@ -30,4 +29,4 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
     - name: Build with Gradle
-      run: ./gradlew build
+      run: ./gradlew assembleDebug --stacktrace
