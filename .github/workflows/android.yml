@@ -20,9 +20,12 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
-    # 新增sdk安装
+    # sdk
     - name: Set up Android SDK
-      uses: reactivecircus/android-sdk-setup@v2
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y android-sdk
+        echo "ANDROID_HOME=/usr/lib/android-sdk" >> $GITHUB_ENV
 
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
