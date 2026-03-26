@@ -1,10 +1,20 @@
 name: Android CI
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: '版本号 (如 1.5)'
+        required: true
+        default: '1.5'
+      version_code:
+        description: '版本代码 (整数，如 2)'
+        required: true
+        default: '1'
+      application_id:
+        description: '包名 (如 com.stdio.mobiles)'
+        required: true
+        default: 'com.stdio.mobiles'
 
 jobs:
   build:
@@ -20,6 +30,13 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
+    - name: Apply custom version and package name
+      run: |
+        sed -i "s/versionName \".*\"/versionName \"${{ github.event.inputs.version_name }}\"/" app/build.gradle
+        sed -i "s/versionCode .*/versionCode ${{ github.event.inputs.version_code }}/" app/build.gradle
+        sed -i "s/applicationId \".*\"/applicationId \"${{ github.event.inputs.application_id }}\"/" app/build.gradle
+        sed -i "s/namespace '.*'/namespace '${{ github.event.inputs.application_id }}'/" app/build.gradle
+
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
@@ -29,5 +46,5 @@ jobs:
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: app-debug
+        name: app-debug-v${{ github.event.inputs.version_name }}
         path: app/build/outputs/apk/debug/*.apk
