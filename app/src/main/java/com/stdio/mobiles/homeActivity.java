@@ -430,14 +430,18 @@ public class homeActivity extends AppCompatActivity {
 					.setCancelButton(new OnDialogButtonClickListener<MessageDialog>() {
 						@Override
 						public boolean onClick(MessageDialog baseDialog, View v) {
-							startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(MainActivity.vide_address)));
+							if (MainActivity.vide_address != null) {
+								startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(MainActivity.vide_address)));
+							}
 							return false;
 						}
 					})
 					.setOtherButton(new OnDialogButtonClickListener<MessageDialog>() {
 						@Override
 						public boolean onClick(MessageDialog baseDialog, View v) {
-							startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(MainActivity.API_address)));
+							if (MainActivity.API_address != null) {
+								startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(MainActivity.API_address)));
+							}
 							return false;
 						}
 					})

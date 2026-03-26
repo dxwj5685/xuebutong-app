@@ -23,7 +23,10 @@ import org.jetbrains.annotations.NotNull;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import javax.net.ssl.*;
 import java.io.*;
+import java.security.cert.X509Certificate;
+import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity {
 	public static String API_address;
@@ -75,8 +78,43 @@ public class MainActivity extends AppCompatActivity {
 		load();
 	}
 	
+	private OkHttpClient getUnsafeOkHttpClient() {
+		try {
+			final TrustManager[] trustAllCerts = new TrustManager[]{
+					new X509TrustManager() {
+						@Override
+						public void checkClientTrusted(X509Certificate[] chain, String authType) {}
+						@Override
+						public void checkServerTrusted(X509Certificate[] chain, String authType) {}
+						@Override
+						public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[]{}; }
+					}
+			};
+			final SSLContext sslContext = SSLContext.getInstance("SSL");
+			sslContext.init(null, trustAllCerts, new java.security.SecureRandom());
+			final SSLSocketFactory sslSocketFactory = sslContext.getSocketFactory();
+			OkHttpClient.Builder builder = new OkHttpClient.Builder();
+			builder.sslSocketFactory(sslSocketFactory, (X509TrustManager) trustAllCerts[0]);
+			builder.hostnameVerifier((hostname, session) -> true);
+			builder.connectTimeout(10, TimeUnit.SECONDS);
+			builder.readTimeout(10, TimeUnit.SECONDS);
+			return builder.build();
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	private void goHome() {
+		Handler handler = new Handler();
+		handler.postDelayed(() -> {
+			Intent intent = new Intent(MainActivity.this, homeActivity.class);
+			startActivity(intent);
+			finish();
+		}, 2000);
+	}
+
 	private void load() {
-		OkHttpClient okHttpClient = new OkHttpClient();
+		OkHttpClient okHttpClient = getUnsafeOkHttpClient();
 		Request request = new Request.Builder()
 				.url("https://wds.ecsxs.com/231547.json")
 				.get()
@@ -85,14 +123,19 @@ public class MainActivity extends AppCompatActivity {
 		call.enqueue(new Callback() {
 			@Override
 			public void onFailure(@NotNull Call call, @NotNull IOException e) {
-			
+				Log.e("MainActivity", "网络请求失败: " + e.getMessage());
+				runOnUiThread(() -> goHome());
 			}
 			
 			@Override
 			public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
-				if (response.body() != null) {
-					try {
-						JSONObject jsonObject = new JSONObject(response.body().string());
+				if (response.body() == null) {
+					runOnUiThread(() -> goHome());
+					return;
+				}
+				try {
+					String body = response.body().string();
+					JSONObject jsonObject = new JSONObject(body);
 						String version = jsonObject.getString("version");
 						String Update_titl = jsonObject.getString("Update_title");
 						String Updated_content = jsonObject.getString("Updated_content");
@@ -118,22 +161,14 @@ public class MainActivity extends AppCompatActivity {
 											.setOkTextInfo(new TextInfo().setFontColor(Color.parseColor("#E30113")).setBold(true))
 											.setCancelable(false);
 								} else {
-									Handler handler = new Handler();
-									handler.postDelayed(new Runnable() {
-										@Override
-										public void run() {
-											Intent intent = new Intent(MainActivity.this, homeActivity.class);
-											startActivity(intent);
-											finish();
-										}
-									}, 2000);
+									goHome();
 								}
 							}
 						});
 						
-					} catch (JSONException e) {
-						throw new RuntimeException(e);
-					}
+				} catch (JSONException e) {
+					Log.e("MainActivity", "JSON解析失败: " + e.getMessage());
+					runOnUiThread(() -> goHome());
 				}
 			}
 		});
