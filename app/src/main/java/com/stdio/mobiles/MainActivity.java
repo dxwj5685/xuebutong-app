@@ -148,7 +148,7 @@ public class MainActivity extends AppCompatActivity {
 							@Override
 							public void run() {
 								if (Float.parseFloat(version) > Float.parseFloat(vis)) {
-									MessageDialog.show(Update_titl, Updated_content, "更新")
+								MessageDialog.show(Update_titl, Updated_content, "更新", "取消")
 											//.setTitleIcon(R.mipmap.i)
 											.setBackgroundColor(Color.parseColor("#FDF8FC"))
 											.setOkButton(new OnDialogButtonClickListener<MessageDialog>() {
@@ -158,7 +158,15 @@ public class MainActivity extends AppCompatActivity {
 													return true;
 												}
 											})
+											.setCancelButton(new OnDialogButtonClickListener<MessageDialog>() {
+												@Override
+												public boolean onClick(MessageDialog baseDialog, View v) {
+													goHome();
+													return false;
+												}
+											})
 											.setOkTextInfo(new TextInfo().setFontColor(Color.parseColor("#E30113")).setBold(true))
+											.setCancelTextInfo(new TextInfo().setFontColor(Color.parseColor("#E30113")).setBold(true))
 											.setCancelable(false);
 								} else {
 									goHome();
