@@ -297,9 +297,20 @@ public class homeActivity extends AppCompatActivity {
 	//账号密码登录
 	private void login(String user, String pass) {
 		OkHttpClient okHttpClient = new OkHttpClient();
+		RequestBody formBody = new FormBody.Builder()
+				.add("fid", "-1")
+				.add("uname", user)
+				.add("password", pass)
+				.add("refer", "https://i.chaoxing.com")
+				.add("t", "true")
+				.add("forbidotherlogin", "0")
+				.add("validate", "")
+				.add("doubleFactorLogin", "0")
+				.add("independentId", "0")
+				.build();
 		Request request = new Request.Builder()
-				.url("https://passport2-api.chaoxing.com/v11/loginregister?code=" + pass + "&cx_xxt_passport=json&uname=" + user + "&loginType=1&roleSelect=t")
-				.get()
+				.url("https://passport2.chaoxing.com/fanyalogin")
+				.post(formBody)
 				.build();
 		Call call = okHttpClient.newCall(request);
 		call.enqueue(new Callback() {
@@ -311,64 +322,29 @@ public class homeActivity extends AppCompatActivity {
 			@Override
 			public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
 				try {
-					JSONObject jsonObject = new JSONObject(response.body().string());
-					String mes = jsonObject.getString("mes");
-					if (mes.equals("验证通过")) {
+					String respBody = response.body().string();
+					JSONObject jsonObject = new JSONObject(respBody);
+					boolean status = jsonObject.optBoolean("status", false);
+					if (status) {
 						mMessageDialog.dismiss();
 						setFile(user, "user.so");
 						setFile(pass, "pass.so");
+						// 从响应头提取所有Set-Cookie
 						Headers headers = response.headers();
-						Log.w("login-cookie", String.valueOf(headers));
-						String uf = "uf=([^;]*)";
-						String UID = "UID=([^;]*)";
-						String vc = "vc=([^;]*)";
-						Pattern pattern_uf = Pattern.compile(uf);
-						Pattern pattern_UID = Pattern.compile(UID);
-						Pattern pattern_vc = Pattern.compile(vc);
-						Matcher matcher_uf = pattern_uf.matcher(String.valueOf(headers));
-						Matcher matcher_UID = pattern_UID.matcher(String.valueOf(headers));
-						Matcher matcher_vc = pattern_vc.matcher(String.valueOf(headers));
-						if (matcher_uf.find()) {
-							String ufValue = matcher_uf.group(1); // 获取匹配到的值
-							cookie = cookie + "uf=" + ufValue + ";";
+						StringBuilder cookieBuilder = new StringBuilder();
+						for (int i = 0; i < headers.size(); i++) {
+							if (headers.name(i).equalsIgnoreCase("Set-Cookie")) {
+								String cookieValue = headers.value(i).split(";")[0];
+								cookieBuilder.append(cookieValue).append(";");
+							}
 						}
-						if (matcher_UID.find()) {
-							String UIDValue = matcher_UID.group(1);
-							cookie = cookie + "UID=" + UIDValue + ";";
-						}
-						if (matcher_vc.find()) {
-							String vcValue = matcher_vc.group(1);
-							cookie = cookie + "vc=" + vcValue + ";";
-						}
-						
-						//获取个人课程cookie
-						String _uid = "_uid=([^;]*)";
-						String _d = "_d=([^;]*)";
-						String vc3 = "vc3=([^;]*)";
-						Pattern pattern_uid = Pattern.compile(_uid);
-						Pattern pattern_d = Pattern.compile(_d);
-						Pattern pattern_vc3 = Pattern.compile(vc3);
-						Matcher matcher_uid = pattern_uid.matcher(String.valueOf(headers));
-						Matcher matcher_d = pattern_d.matcher(String.valueOf(headers));
-						Matcher matcher_vc3 = pattern_vc3.matcher(String.valueOf(headers));
-						if (matcher_uid.find()) {
-							String uidValue = matcher_uid.group(1); // 获取匹配到的值
-							cookie = cookie + "_uid=" + uidValue + ";";
-						}
-						if (matcher_d.find()) {
-							String _dValue = matcher_d.group(1);
-							cookie = cookie + "_d=" + _dValue + ";";
-						}
-						if (matcher_vc3.find()) {
-							String vc3Value = matcher_vc3.group(1);
-							cookie = cookie + "vc3=" + vc3Value + ";";
-						}
+						cookie = cookieBuilder.toString();
+						Log.w("login-cookie", cookie);
 						
 						runOnUiThread(new Runnable() {
 							@Override
 							public void run() {
-								setFile(cookie, "cookie.txt");//记录cookie
-								//获取当前时间
+								setFile(cookie, "cookie.txt");
 								Calendar calendar = Calendar.getInstance();
 								SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss ", Locale.getDefault());
 								String currentTime = sdf.format(calendar.getTime());
@@ -381,10 +357,10 @@ public class homeActivity extends AppCompatActivity {
 										Log.w("------cookie", String.valueOf(cookie));
 									}
 								}).start();
-								
 							}
 						});
 					} else {
+						String mes = jsonObject.optString("msg2", "登录失败");
 						runOnUiThread(new Runnable() {
 							@Override
 							public void run() {
@@ -396,10 +372,9 @@ public class homeActivity extends AppCompatActivity {
 								loggd.scrollTo(0, loggd.getChildAt(0).getHeight());
 							}
 						});
-						
 					}
 				} catch (JSONException e) {
-					throw new RuntimeException(e);
+					Log.e("login", "JSON解析失败: " + e.getMessage());
 				}
 			}
 		});
@@ -709,12 +684,19 @@ public class homeActivity extends AppCompatActivity {
 	
 	//获取我的课程
 	private void wo() {
-		//
 		OkHttpClient okHttpClient = new OkHttpClient();
+		RequestBody formBody = new FormBody.Builder()
+				.add("courseType", "1")
+				.add("courseFolderId", "0")
+				.add("query", "")
+				.add("superstarClass", "0")
+				.build();
 		Request request = new Request.Builder()
-				.url("http://mooc1-api.chaoxing.com/mycourse/backclazzdata?view=json&rss=1")
-				.addHeader("cookie", cookie)
-				.get()
+				.url("https://mooc2-ans.chaoxing.com/mooc2-ans/visit/courselistdata")
+				.addHeader("Cookie", cookie)
+				.addHeader("User-Agent", "Mozilla/5.0 (Linux; Android 12; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Mobile Safari/537.36")
+				.addHeader("Referer", "https://mooc2-ans.chaoxing.com/mooc2-ans/visit/interaction")
+				.post(formBody)
 				.build();
 		Call call = okHttpClient.newCall(request);
 		call.enqueue(new Callback() {
@@ -727,99 +709,109 @@ public class homeActivity extends AppCompatActivity {
 			
 			@Override
 			public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
-				try {
-					String tate = response.body().string();
-					Log.w("课程", tate);
-					JSONObject jsonObject = new JSONObject(tate);
-					if (jsonObject.has("channelList")) {
-						JSONArray data = jsonObject.getJSONArray("channelList");
-						String schools;
-						if (String.valueOf(data).equals("[]")) {
-							runOnUiThread(new Runnable() {
-								@Override
-								public void run() {
-									load.setVisibility(View.VISIBLE);
-									mmsgad.onDataChanged();
-								}
-							});
-						} else {
-							for (int i = 0; i < data.length(); i++) {
-								if (data != null) {
-									JSONObject jsonObject1 = data.getJSONObject(i);
-									Log.w("------", String.valueOf(jsonObject1));
-									if (jsonObject1.has("cataName")) {
-										JSONObject jsonObject2 = jsonObject1.getJSONObject("content");
-										if (jsonObject2.has("course")) {
-											JSONObject jsonObject3 = jsonObject2.getJSONObject("course");
-											if (jsonObject3.has("data")) {
-												JSONArray jsonArray = jsonObject3.getJSONArray("data");
-												JSONObject jsonObject4 = jsonArray.getJSONObject(0);
-												String teacherfactor;
-												if (jsonObject4.has("teacherfactor")) {
-													teacherfactor = jsonObject4.getString("teacherfactor");
-												} else {
-													teacherfactor = "学不通教授";
-												}
-												String imageurl;
-												if (jsonObject4.has("imageurl")) {
-													imageurl = jsonObject4.getString("imageurl");
-												} else {
-													imageurl = "http://q1.qlogo.cn/g?b=qq&nk=1228727365&s=640";
-												}
-												if (jsonObject4.has("courseSquareUrl") && jsonObject4.has("name") && jsonObject4.has("id") && jsonObject1.has("cpi") && jsonObject1.has("id") && jsonObject1.has("key")) {
-													String name = jsonObject4.getString("name");
-													String courseSquareUrl = jsonObject4.getString("courseSquareUrl");
-													String CourseId = jsonObject4.getString("id");
-													String personId = jsonObject1.getString("cpi");
-													String classId = jsonObject1.getString("id");
-													String key = jsonObject1.getString("key");
-													if (jsonObject4.has("schools")) {
-														if (jsonObject4.getString("schools").isEmpty()) {
-															schools = "老师很懒，暂时没有介绍";
-														} else {
-															schools = jsonObject4.getString("schools");
-														}
-													} else {
-														schools = "老师很懒，暂时没有介绍";
-													}
-													Log.w("------", teacherfactor + imageurl + name + schools);
-													msgList.add(new msg(teacherfactor, schools, imageurl, name, courseSquareUrl, CourseId, personId, classId, key, cookie));
-												}
-											}
-										}
-									}
-									
-								} else {
-									runOnUiThread(new Runnable() {
-										@Override
-										public void run() {
-											load.setVisibility(View.VISIBLE);
-										}
-									});
-								}
-							}
-							homeActivity.this.runOnUiThread(new Runnable() {
-								@Override
-								public void run() {
-									load.setVisibility(View.GONE);
-									mmsgad = new msgad(msgList, homeActivity.this);
-									recyclerView.setAdapter(mmsgad);
-								}
-							});
-						}
-					} else {
-						runOnUiThread(new Runnable() {
-							@Override
-							public void run() {
-								load.setVisibility(View.VISIBLE);
-							}
-						});
-					}
-				} catch (JSONException e) {
-					throw new RuntimeException(e);
-				}
+				String html = response.body().string();
+				Log.w("课程", html);
+				parseCourseListHtml(html);
 			}
 		});
+	}
+	
+	// 解析新版课程列表HTML
+	private void parseCourseListHtml(String html) {
+		try {
+			// 使用正则从HTML中提取课程信息
+			// 课程链接格式: courseId=xxx&clazzid=xxx&cpi=xxx
+			Pattern coursePattern = Pattern.compile("courseId=(\\d+)&clazzid=(\\d+)&cpi=(\\d+)");
+			// 课程名称
+			Pattern namePattern = Pattern.compile("class=\"course-name[^\"]*\"[^>]*title=\"([^\"]+)\"");
+			// 老师名称
+			Pattern teacherPattern = Pattern.compile("class=\"bottom-[^\"]*teacher[^\"]*\"[^>]*>([^<]+)<");
+			// 课程图片
+			Pattern imgPattern = Pattern.compile("<img[^>]+class=\"course-cover\"[^>]+src=\"([^\"]+)\"");
+			
+			Matcher courseMatcher = coursePattern.matcher(html);
+			Matcher nameMatcher = namePattern.matcher(html);
+			
+			// 备用：直接用Jsoup风格的简单解析
+			// 新版API返回的HTML中每个课程是一个li.course-item
+			Pattern itemPattern = Pattern.compile(
+				"<li[^>]*class=\"[^\"]*course[^\"]*\"[^>]*>[\\s\\S]*?" +
+				"courseId=(\\d+)[&\"]" +
+				"[\\s\\S]*?" +
+				"clazzid=(\\d+)" +
+				"[\\s\\S]*?" +
+				"cpi=(\\d+)" +
+				"[\\s\\S]*?" +
+				"title=\"([^\"]*?)\"" +
+				"[\\s\\S]*?" +
+				"</li>"
+			);
+			
+			Matcher itemMatcher = itemPattern.matcher(html);
+			boolean found = false;
+			while (itemMatcher.find()) {
+				found = true;
+				String courseId = itemMatcher.group(1);
+				String clazzId = itemMatcher.group(2);
+				String cpi = itemMatcher.group(3);
+				String name = itemMatcher.group(4);
+				Log.w("课程解析", "courseId=" + courseId + " clazzId=" + clazzId + " cpi=" + cpi + " name=" + name);
+				msgList.add(new msg("", "", "", name != null ? name : "未知课程", "", courseId, cpi, clazzId, clazzId, cookie));
+			}
+			
+			// 如果上面的正则没匹配到，尝试更宽松的匹配
+			if (!found) {
+				// 匹配所有courseId/clazzid/cpi组合
+				Pattern linkPattern = Pattern.compile("courseId=(\\d+)&amp;clazzid=(\\d+)&amp;cpi=(\\d+)");
+				Matcher linkMatcher = linkPattern.matcher(html);
+				// 匹配所有title
+				Pattern titlePattern = Pattern.compile("title=\"([^\"]{2,})\"");
+				Matcher titleMatcher = titlePattern.matcher(html);
+				
+				List<String[]> courses = new ArrayList<>();
+				while (linkMatcher.find()) {
+					courses.add(new String[]{linkMatcher.group(1), linkMatcher.group(2), linkMatcher.group(3)});
+				}
+				List<String> titles = new ArrayList<>();
+				while (titleMatcher.find()) {
+					String t = titleMatcher.group(1);
+					if (t != null && !t.isEmpty() && !t.contains("class") && !t.contains("{")) {
+						titles.add(t);
+					}
+				}
+				
+				for (int i = 0; i < courses.size(); i++) {
+					String[] c = courses.get(i);
+					String title = i < titles.size() ? titles.get(i) : "课程" + (i + 1);
+					Log.w("课程解析2", "courseId=" + c[0] + " clazzId=" + c[1] + " cpi=" + c[2] + " name=" + title);
+					msgList.add(new msg("", "", "", title, "", c[0], c[2], c[1], c[1], cookie));
+					found = true;
+				}
+			}
+			
+			boolean finalFound = found;
+			runOnUiThread(new Runnable() {
+				@Override
+				public void run() {
+					if (finalFound && !msgList.isEmpty()) {
+						load.setVisibility(View.GONE);
+						mmsgad = new msgad(msgList, homeActivity.this);
+						recyclerView.setAdapter(mmsgad);
+					} else {
+						load.setVisibility(View.VISIBLE);
+						Log.e("课程", "未能解析到课程数据");
+					}
+				}
+			});
+		} catch (Exception e) {
+			Log.e("课程", "解析课程列表失败: " + e.getMessage());
+			runOnUiThread(new Runnable() {
+				@Override
+				public void run() {
+					load.setVisibility(View.VISIBLE);
+				}
+			});
+		}
 	}
 	
 	// 记录cookike
