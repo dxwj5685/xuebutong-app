@@ -36,6 +36,11 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+
 import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -716,101 +721,49 @@ public class homeActivity extends AppCompatActivity {
 		});
 	}
 	
-	// 解析新版课程列表HTML
+	// 使用Jsoup解析新版课程列表HTML（参考Samueli924/chaoxing的decode_course_list）
 	private void parseCourseListHtml(String html) {
 		try {
-			// 使用正则从HTML中提取课程信息
-			// 课程链接格式: courseId=xxx&clazzid=xxx&cpi=xxx
-			Pattern coursePattern = Pattern.compile("courseId=(\\d+)&clazzid=(\\d+)&cpi=(\\d+)");
-			// 课程名称
-			Pattern namePattern = Pattern.compile("class=\"course-name[^\"]*\"[^>]*title=\"([^\"]+)\"");
-			// 老师名称
-			Pattern teacherPattern = Pattern.compile("class=\"bottom-[^\"]*teacher[^\"]*\"[^>]*>([^<]+)<");
-			// 课程图片
-			Pattern imgPattern = Pattern.compile("<img[^>]+class=\"course-cover\"[^>]+src=\"([^\"]+)\"");
-			
-			Matcher courseMatcher = coursePattern.matcher(html);
-			Matcher nameMatcher = namePattern.matcher(html);
-			
-			// 备用：直接用Jsoup风格的简单解析
-			// 新版API返回的HTML中每个课程是一个li.course-item
-			Pattern itemPattern = Pattern.compile(
-				"<li[^>]*class=\"[^\"]*course[^\"]*\"[^>]*>[\\s\\S]*?" +
-				"courseId=(\\d+)[&\"]" +
-				"[\\s\\S]*?" +
-				"clazzid=(\\d+)" +
-				"[\\s\\S]*?" +
-				"cpi=(\\d+)" +
-				"[\\s\\S]*?" +
-				"title=\"([^\"]*?)\"" +
-				"[\\s\\S]*?" +
-				"</li>"
-			);
-			
-			Matcher itemMatcher = itemPattern.matcher(html);
-			boolean found = false;
-			while (itemMatcher.find()) {
-				found = true;
-				String courseId = itemMatcher.group(1);
-				String clazzId = itemMatcher.group(2);
-				String cpi = itemMatcher.group(3);
-				String name = itemMatcher.group(4);
+			Document doc = Jsoup.parse(html);
+			Elements courses = doc.select("div.course");
+			for (Element course : courses) {
+				// 跳过未开放课程
+				if (course.selectFirst("a.not-open-tip") != null || course.selectFirst("div.not-open-tip") != null) {
+					continue;
+				}
+				Element clazzIdInput = course.selectFirst("input.clazzId");
+				Element courseIdInput = course.selectFirst("input.courseId");
+				Element courseNameSpan = course.selectFirst("span.course-name");
+				Element link = course.selectFirst("a");
+				Element teacherP = course.selectFirst("p.color3");
+				if (clazzIdInput == null || courseIdInput == null || link == null) continue;
+				String clazzId = clazzIdInput.attr("value");
+				String courseId = courseIdInput.attr("value");
+				String name = courseNameSpan != null ? courseNameSpan.attr("title") : "未知课程";
+				String teacher = teacherP != null ? teacherP.attr("title") : "";
+				// 从链接中提取cpi
+				String href = link.attr("href");
+				String cpi = "";
+				Matcher cpiMatcher = Pattern.compile("cpi=(.*?)&").matcher(href);
+				if (cpiMatcher.find()) {
+					cpi = cpiMatcher.group(1);
+				}
 				Log.w("课程解析", "courseId=" + courseId + " clazzId=" + clazzId + " cpi=" + cpi + " name=" + name);
-				msgList.add(new msg("", "", "", name != null ? name : "未知课程", "", courseId, cpi, clazzId, clazzId, cookie));
+				msgList.add(new msg(teacher, "", "", name, "", courseId, cpi, clazzId, clazzId, cookie));
 			}
-			
-			// 如果上面的正则没匹配到，尝试更宽松的匹配
-			if (!found) {
-				// 匹配所有courseId/clazzid/cpi组合
-				Pattern linkPattern = Pattern.compile("courseId=(\\d+)&amp;clazzid=(\\d+)&amp;cpi=(\\d+)");
-				Matcher linkMatcher = linkPattern.matcher(html);
-				// 匹配所有title
-				Pattern titlePattern = Pattern.compile("title=\"([^\"]{2,})\"");
-				Matcher titleMatcher = titlePattern.matcher(html);
-				
-				List<String[]> courses = new ArrayList<>();
-				while (linkMatcher.find()) {
-					courses.add(new String[]{linkMatcher.group(1), linkMatcher.group(2), linkMatcher.group(3)});
-				}
-				List<String> titles = new ArrayList<>();
-				while (titleMatcher.find()) {
-					String t = titleMatcher.group(1);
-					if (t != null && !t.isEmpty() && !t.contains("class") && !t.contains("{")) {
-						titles.add(t);
-					}
-				}
-				
-				for (int i = 0; i < courses.size(); i++) {
-					String[] c = courses.get(i);
-					String title = i < titles.size() ? titles.get(i) : "课程" + (i + 1);
-					Log.w("课程解析2", "courseId=" + c[0] + " clazzId=" + c[1] + " cpi=" + c[2] + " name=" + title);
-					msgList.add(new msg("", "", "", title, "", c[0], c[2], c[1], c[1], cookie));
-					found = true;
-				}
-			}
-			
-			boolean finalFound = found;
-			runOnUiThread(new Runnable() {
-				@Override
-				public void run() {
-					if (finalFound && !msgList.isEmpty()) {
-						load.setVisibility(View.GONE);
-						mmsgad = new msgad(msgList, homeActivity.this);
-						recyclerView.setAdapter(mmsgad);
-					} else {
-						load.setVisibility(View.VISIBLE);
-						Log.e("课程", "未能解析到课程数据");
-					}
+			runOnUiThread(() -> {
+				if (!msgList.isEmpty()) {
+					load.setVisibility(View.GONE);
+					mmsgad = new msgad(msgList, homeActivity.this);
+					recyclerView.setAdapter(mmsgad);
+				} else {
+					load.setVisibility(View.VISIBLE);
+					Log.e("课程", "未能解析到课程数据，HTML长度: " + html.length());
 				}
 			});
 		} catch (Exception e) {
 			Log.e("课程", "解析课程列表失败: " + e.getMessage());
-			runOnUiThread(new Runnable() {
-				@Override
-				public void run() {
-					load.setVisibility(View.VISIBLE);
-				}
-			});
+			runOnUiThread(() -> load.setVisibility(View.VISIBLE));
 		}
 	}
 	
