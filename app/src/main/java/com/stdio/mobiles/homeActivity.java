@@ -748,8 +748,8 @@ public class homeActivity extends AppCompatActivity {
 				if (cpiMatcher.find()) {
 					cpi = cpiMatcher.group(1);
 				}
-				Log.w("课程解析", "courseId=" + courseId + " clazzId=" + clazzId + " cpi=" + cpi + " name=" + name);
-				msgList.add(new msg(teacher, "", "", name, "", courseId, cpi, clazzId, clazzId, cookie));
+				Log.w("课程解析", "courseId=" + courseId + " clazzId=" + clazzId + " cpi=" + cpi + " name=" + name + " href=" + href);
+				msgList.add(new msg(teacher, "", "", name, href, courseId, cpi, clazzId, clazzId, cookie));
 			}
 			runOnUiThread(() -> {
 				if (!msgList.isEmpty()) {

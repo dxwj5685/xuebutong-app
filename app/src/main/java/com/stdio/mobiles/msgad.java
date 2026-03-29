@@ -51,10 +51,20 @@ public class msgad extends ByRecyclerView.Adapter<msgad.ViewHold> {
         holder.lb_list.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                String url = "https://mooc1.chaoxing.com/mycourse/studentstudy?courseId=" + msg.getCourseId()
-                        + "&clazzid=" + msg.getKey()
-                        + "&cpi=" + msg.getPersonId()
-                        + "&mooc2=1";
+                // 直接使用课程列表中的原始链接（包含enc等参数）
+                String href = msg.getCourseSquareUrl();
+                String url;
+                if (href != null && !href.isEmpty() && href.startsWith("http")) {
+                    url = href;
+                } else if (href != null && !href.isEmpty() && href.startsWith("/")) {
+                    url = "https://mooc2-ans.chaoxing.com" + href;
+                } else {
+                    // 兜底：用studentcourse页面（不需要enc）
+                    url = "https://mooc2-ans.chaoxing.com/mooc2-ans/mycourse/studentcourse?courseid=" + msg.getCourseId()
+                            + "&clazzid=" + msg.getKey()
+                            + "&cpi=" + msg.getPersonId()
+                            + "&ut=s";
+                }
                 Log.w("//////", url);
                 Intent intent = new Intent(mContext, WebActivity.class);
                 intent.putExtra("url", url);
