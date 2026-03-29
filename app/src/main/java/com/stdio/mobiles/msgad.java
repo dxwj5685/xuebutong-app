@@ -51,18 +51,17 @@ public class msgad extends ByRecyclerView.Adapter<msgad.ViewHold> {
         holder.lb_list.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                //userId=
-                Uri uri = Uri.parse(msg.getCourseSquareUrl());
-                String userId = uri.getQueryParameter("userId");
-                Log.w("//////", msg.getCourseSquareUrl().replace("app?courseId=", "app.html?/").replace("&personId=", "/").replace("&classId=", "/").replace("&userId=", "/") + "/timeid#/category?courseId=" + msg.getCourseId() + "&personId=" + msg.getPersonId() + "&classId=" + msg.getClassId() + "&userId=" + userId);
-                String url = msg.getCourseSquareUrl().replace("app?courseId=", "app.html?/").replace("&personId=", "/").replace("&classId=", "/").replace("&userId=", "/") + "/timeid#/category?courseId=" + msg.getCourseId() + "&personId=" + msg.getPersonId() + "&classId=" + msg.getClassId() + "&userId=" + userId;
+                String url = "https://mooc1.chaoxing.com/mycourse/studentstudy?courseId=" + msg.getCourseId()
+                        + "&clazzid=" + msg.getKey()
+                        + "&cpi=" + msg.getPersonId()
+                        + "&mooc2=1";
+                Log.w("//////", url);
                 Intent intent = new Intent(mContext, WebActivity.class);
                 intent.putExtra("url", url);
                 intent.putExtra("key", msg.getKey());
                 intent.putExtra("title", msg.getName());
                 intent.putExtra("cookie", msg.getCookie());
                 mContext.startActivity(intent);
-
             }
         });
     }
